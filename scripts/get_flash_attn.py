@@ -1,6 +1,8 @@
 import platform
 import sys
-
+import requests
+from bs4 import BeautifulSoup
+import subprocess
 import torch
 
 
@@ -50,10 +52,44 @@ def generate_flash_attn_filename(flash_attn_version="2.7.2.post1"):
     )
     return filename
 
+def install_flash_attn_wheel(filename):
+    base_url = "https://github.com/Dao-AILab/flash-attention/releases"
+    releases_url = f"{base_url}"
+
+    print(f"Searching for {filename} on FlashAttention GitHub releases...")
+
+    # Fetch release page HTML
+    response = requests.get(releases_url)
+    if response.status_code != 200:
+        print("Failed to fetch releases page.")
+        return
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    links = soup.find_all("a")
+
+    download_url = None
+    for link in links:
+        href = link.get("href", "")
+        if filename in href:
+            download_url = "https://github.com" + href
+            break
+
+    if download_url:
+        print(f"Found wheel: {download_url}")
+        print("Downloading and installing...")
+
+        try:
+            subprocess.run(["pip", "install", download_url], check=True)
+            print("FlashAttention installed successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"pip install failed: {e}")
+    else:
+        print(f"Wheel '{filename}' not found on FlashAttention releases.")
 
 if __name__ == "__main__":
     try:
         filename = generate_flash_attn_filename()
         print("Generated filename:", filename)
+        install_flash_attn_wheel(filename)
     except Exception as e:
         print("Error generating filename:", e)
